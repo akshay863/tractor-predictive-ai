@@ -22,195 +22,141 @@ st.markdown("""
 
 st.markdown("""
     <div class="premium-header">
-        <h1>🚜 100-Channel R&D Diagnostics Command</h1>
-        <p>PROCESSING 100 SIMULTANEOUS SENSORS • DYNAMIC PRESCRIPTIVE MAINTENANCE • HIGH-DIMENSIONAL XAI</p>
+        <h1>🚜 15-Parameter Advanced R&D Command</h1>
+        <p>100-NODE CAN BUS • DYNAMIC PRESCRIPTIVE MAINTENANCE • MULTI-SENSOR NLP</p>
     </div>
 """, unsafe_allow_html=True)
 
 @st.cache_resource
-def load_model():
-    return joblib.load('tractor_health_model.pkl')
+def load_model(): return joblib.load('tractor_health_model.pkl')
 
-try:
-    model = load_model()
-except FileNotFoundError:
-    st.error("⚠️ AI Core Offline: tractor_health_model.pkl not found.")
-    st.stop()
+try: model = load_model()
+except FileNotFoundError: st.stop()
 
-# --- Sidebar Inputs ---
+# --- Sidebar Inputs (Now 15 Parameters!) ---
 with st.sidebar:
     st.markdown("### 📡 Macro Control Hub")
     streaming = st.toggle("🟢 Auto-Streaming", value=False)
     st.divider()
 
     if 'sensors' not in st.session_state:
-        st.session_state.sensors = { 'rpm': 1800, 'load': 45, 'temp': 85, 'pressure': 200, 'slip': 10, 'trans_temp': 75, 'battery': 13.8, 'pto': 540 }
+        st.session_state.sensors = { 
+            'rpm': 1800, 'load': 45, 'temp': 85, 'egt': 400, 'fuel': 1500, 'intake': 40,
+            'trans': 75, 'pressure': 200, 'flow': 80, 'pto': 540, 'draft': 15,
+            'slip': 10, 'radar': 12, 'steer': 0, 'battery': 13.8 
+        }
 
-    if streaming:
-        st.session_state.sensors['rpm'] = int(np.clip(st.session_state.sensors['rpm'] + np.random.normal(0, 15), 800, 2500))
-        st.session_state.sensors['pressure'] = np.clip(st.session_state.sensors['pressure'] + np.random.normal(0, 1.5), 100, 250)
-        time.sleep(0.3) 
-
+    st.markdown("#### Engine & Powertrain")
     rpm = st.slider("Engine RPM", 800, 2500, st.session_state.sensors['rpm'])
     load = st.slider("Engine Load (%)", 0, 100, st.session_state.sensors['load'])
     temp = st.slider("Coolant Temp (°C)", 70, 125, int(st.session_state.sensors['temp']))
-    trans_temp = st.slider("Transmission Temp (°C)", 50, 130, st.session_state.sensors['trans_temp'])
+    egt = st.slider("Exhaust Gas Temp (°C)", 200, 800, st.session_state.sensors['egt'])
+    fuel = st.slider("Fuel Rail Pressure (bar)", 500, 2500, st.session_state.sensors['fuel'])
+    intake = st.slider("Intake Air Temp (°C)", 20, 90, st.session_state.sensors['intake'])
+    trans = st.slider("Transmission Temp (°C)", 50, 130, st.session_state.sensors['trans'])
+
+    st.markdown("#### Hydraulics & Implement")
     pressure = st.slider("Hydraulic Pressure (bar)", 100, 250, int(st.session_state.sensors['pressure']))
+    flow = st.slider("Hydraulic Flow (L/min)", 10, 120, st.session_state.sensors['flow'])
     pto = st.slider("PTO Speed (RPM)", 0, 600, st.session_state.sensors['pto'])
-    slip = st.slider("Wheel Slip (%)", 0, 40, st.session_state.sensors['slip'])
+    draft = st.slider("Draft Load (kN)", 0, 60, st.session_state.sensors['draft'], help="Pulling resistance of the implement")
+
+    st.markdown("#### Chassis & Electrical")
+    slip = st.slider("Wheel Slip (%)", 0, 50, st.session_state.sensors['slip'])
+    radar = st.slider("Radar Speed (km/h)", 0.0, 40.0, float(st.session_state.sensors['radar']))
+    steer = st.slider("Steering Angle (°)", -45, 45, st.session_state.sensors['steer'])
     battery = st.slider("Battery Voltage (V)", 10.0, 15.0, round(st.session_state.sensors['battery'], 1))
 
-# --- Build the 100-Feature Dictionary dynamically ---
+# --- Build the 100-Feature Dictionary ---
 input_dict = {
     'Engine_RPM': rpm, 'Engine_Load_pct': load, 'Coolant_Temp_C': temp,
-    'Hydraulic_Pressure_bar': pressure, 'Wheel_Slip_pct': slip,
-    'Transmission_Temp_C': trans_temp, 'Battery_Voltage_V': battery, 'PTO_Speed_RPM': pto
+    'Exhaust_Gas_Temp_C': egt, 'Fuel_Rail_Pressure_bar': fuel, 'Intake_Air_Temp_C': intake,
+    'Transmission_Temp_C': trans, 'Hydraulic_Pressure_bar': pressure, 'Hydraulic_Flow_Lpm': flow,
+    'PTO_Speed_RPM': pto, 'Draft_Load_kN': draft, 'Wheel_Slip_pct': slip,
+    'Radar_Speed_kmh': radar, 'Steering_Angle_deg': steer, 'Battery_Voltage_V': battery
 }
 
 np.random.seed(int(time.time())) 
-for i in range(1, 24): input_dict[f'Engine_Micro_Vib_{i}_Hz'] = rpm * np.random.uniform(0.01, 0.05)
-for i in range(1, 24): input_dict[f'Hyd_Valve_Pressure_{i}_bar'] = pressure * np.random.uniform(0.8, 1.2)
-for i in range(1, 24): input_dict[f'Trans_Gear_Temp_{i}_C'] = trans_temp * np.random.uniform(0.9, 1.1)
-for i in range(1, 24): input_dict[f'CAN_Node_Volt_{i}_V'] = battery * np.random.uniform(0.95, 1.05)
+for i in range(1, 22): input_dict[f'Engine_Micro_{i}'] = rpm * np.random.uniform(0.01, 0.05)
+for i in range(1, 22): input_dict[f'Hyd_Micro_{i}'] = pressure * np.random.uniform(0.8, 1.2)
+for i in range(1, 22): input_dict[f'Trans_Micro_{i}'] = trans * np.random.uniform(0.9, 1.1)
+for i in range(1, 23): input_dict[f'Elec_Micro_{i}'] = battery * np.random.uniform(0.95, 1.05)
 
 input_df = pd.DataFrame([input_dict])
 
-# --- AI Inference ---
 prediction = model.predict(input_df)[0]
 confidence = max(model.predict_proba(input_df)[0]) * 100
 importances = model.feature_importances_
 
-# --- DYNAMIC NLP HEURISTIC ENGINE ---
-def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_press, p_trans, p_slip, p_batt, p_pto, dtc):
-    conditions = []
-    fixes = []
+# --- MASSIVE DYNAMIC NLP HEURISTIC ENGINE ---
+def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_egt, p_fuel, p_intake, p_trans, p_press, p_flow, p_pto, p_draft, p_slip, p_batt):
+    conditions, fixes = [], []
     
-    # 1. Evaluate Engine RPM
-    if p_rpm > 2200:
-        conditions.append(f"overspeeding at {p_rpm} RPM")
-        fixes.append("Throttle down engine immediately to prevent valvetrain float.")
-    elif p_rpm < 1000 and p_load > 60:
-        conditions.append(f"lugging the engine at {p_rpm} RPM")
-        fixes.append("Downshift transmission to raise engine RPM into the torque curve.")
-    
-    # 2. Evaluate Engine Load
+    # Engine & Air/Fuel
     if p_load > 85:
         conditions.append(f"sustaining severe mechanical load ({p_load}%)")
-        fixes.append("Reduce implement draft depth or shift to a lower gear to relieve engine stress.")
-    
-    # 3. Evaluate Coolant Temp
+        fixes.append("Shift to a lower gear to relieve engine torque stress.")
     if p_temp > 105:
-        conditions.append(f"experiencing critical thermal stress ({p_temp}°C)")
-        fixes.append("Inspect radiator fins for field debris and verify coolant reservoir levels.")
+        conditions.append(f"experiencing critical coolant thermal stress ({p_temp}°C)")
+        fixes.append("Inspect radiator fins for debris and verify water pump operation.")
+    if p_egt > 650:
+        conditions.append(f"pushing dangerous exhaust gas temperatures ({p_egt}°C)")
+        fixes.append("Decrease engine load immediately to prevent turbocharger failure. Allow engine to idle to cool turbo bearings.")
+    if p_fuel < 1000 and p_load > 50:
+        conditions.append(f"losing common-rail fuel pressure ({p_fuel} bar)")
+        fixes.append("Replace primary and secondary diesel fuel filters (possible cavitation).")
+    if p_intake > 60:
+        conditions.append(f"breathing overheated intake air ({p_intake}°C)")
+        fixes.append("Clean intercooler fins and check air filter restriction indicator.")
+
+    # Hydraulics & Draft
+    if p_press < 140 or p_flow < 40:
+        conditions.append(f"losing hydraulic flow and pressure")
+        fixes.append("Check main hydraulic pump seals, SCV valves, and verify fluid levels.")
+    if p_draft > 40:
+        conditions.append(f"experiencing severe implement draft resistance ({p_draft} kN)")
+        fixes.append("Raise 3-point hitch slightly or adjust electronic draft control sensitivity.")
     
-    # 4. Evaluate Hydraulic Pressure
-    if p_press < 140:
-        conditions.append(f"losing hydraulic flow ({p_press} bar)")
-        fixes.append("Check main hydraulic pump seals and verify fluid levels.")
-    elif p_press > 230:
-        conditions.append(f"pushing extreme hydraulic pressure ({p_press} bar)")
-        fixes.append("Inspect hydraulic pressure relief valve for blockage or stickiness.")
-    
-    # 5. Evaluate Transmission Temp
+    # Powertrain & Traction
     if p_trans > 110:
-        conditions.append(f"overheating the transmission clutch packs ({p_trans}°C)")
-        fixes.append("Disengage implement and allow transmission fluid to circulate and cool.")
+        conditions.append(f"overheating transmission clutch packs ({p_trans}°C)")
+        fixes.append("Disengage implement and allow transmission fluid to circulate through cooler.")
+    if p_slip > 20 and p_draft > 30:
+        conditions.append(f"spinning out under heavy pulling load ({p_slip}% slip)")
+        fixes.append("Engage mechanical front-wheel drive (MFWD), differential lock, or adjust rear wheel ballasting.")
     
-    # 6. Evaluate Traction / Slip
-    if p_slip > 25:
-        conditions.append(f"suffering heavy traction loss ({p_slip}% slip)")
-        fixes.append("Engage differential lock or add wheel/suitcase weights for better soil traction.")
-    
-    # 7. Evaluate Electrical
+    # Electrical
     if p_batt < 12.0:
         conditions.append(f"detecting dangerous voltage drops ({p_batt}V)")
-        fixes.append("Test alternator serpentine belt tension and clean battery terminals.")
-    
-    # 8. Evaluate PTO
-    if p_pto < 500 and p_load > 60:
-        conditions.append("bogging down the PTO shaft under heavy draft")
-        fixes.append("Check PTO shear pin and reduce PTO driveline operating angle.")
+        fixes.append("Test alternator output and clean battery terminals.")
 
     # Construct the Final Output
-    if dtc == 0:
+    if prediction == 0:
         if not conditions:
-            status = "✅ **STATUS:** The vehicle is operating flawlessly within the nominal baseline. No stress signatures detected across the 100-node network."
-            fix_str = "✔️ Continue standard field operations."
+            return "✅ **STATUS:** The vehicle is operating flawlessly. No stress signatures detected across the 15 primary parameters.", "✔️ Continue standard field operations."
         else:
-            status = f"⚠️ **STATUS:** The core AI confirms no critical failures yet, however, the system is currently " + ", and ".join(conditions) + "."
-            fix_list = "\n".join([f"- {fix}" for fix in fixes])
-            fix_str = f"**🔧 Preventative Actions Recommended:**\n{fix_list}"
-        return status, fix_str
+            return f"⚠️ **STATUS:** AI confirms no critical failures yet, but the system is currently " + ", and ".join(conditions) + ".", "**🔧 Preventative Actions:**\n" + "\n".join([f"- {f}" for f in fixes])
     
-    # If a failure is happening
-    dtc_names = {1: "HYD-001 (Hydraulic)", 2: "ENG-002 (Engine)", 3: "TRN-003 (Transmission)", 4: "ELE-004 (Electrical)", 5: "PTO-005 (PTO)"}
-    fault = dtc_names.get(dtc, "Unknown")
-    
-    status = f"❌ **CRITICAL AI FAULT DETECTED [{fault}]:** The predictive model has identified a failure signature because the machine is " + ", and ".join(conditions) + "."
-    fix_list = "\n".join([f"- {fix}" for fix in fixes])
-    fix_str = f"**🛠️ IMMEDIATE TECHNICIAN ACTIONS:**\n{fix_list}"
-    
-    return status, fix_str
+    dtc_names = {1: "HYD-001", 2: "ENG-002", 3: "TRN-003", 4: "ELE-004", 5: "PTO-005"}
+    return f"❌ **CRITICAL AI FAULT [{dtc_names.get(prediction)}]:** Failure signature identified because the machine is " + ", and ".join(conditions) + ".", "**🛠️ IMMEDIATE ACTIONS:**\n" + "\n".join([f"- {f}" for f in fixes])
 
-# Generate the custom sentences
-status_msg, fix_msg = generate_dynamic_diagnostics(rpm, load, temp, pressure, trans_temp, slip, battery, pto, prediction)
+status_msg, fix_msg = generate_dynamic_diagnostics(rpm, load, temp, egt, fuel, intake, trans, pressure, flow, pto, draft, slip, battery)
 
-# --- UI Tabs ---
-tab_diag, tab_raw = st.tabs(["⚡ Core Diagnostics", "🔢 Raw 100-Channel CAN Feed"])
+# --- UI Layout ---
+col_alert, col_xai = st.columns([1.3, 1])
+with col_alert:
+    st.markdown("### Vehicle Health Status")
+    if prediction == 0 and "flawlessly" in status_msg:
+        st.success(status_msg); st.info(fix_msg)
+    elif prediction == 0:
+        st.warning(status_msg); st.info(fix_msg)
+    else:
+        st.error(status_msg); st.error(fix_msg)
 
-with tab_diag:
-    with st.container(border=True):
-        col_alert, col_xai = st.columns([1.3, 1])
-        with col_alert:
-            st.markdown("### 100-Node Health Status")
-            
-            # Print dynamically generated status and fixes
-            if prediction == 0 and "flawlessly" in status_msg:
-                st.success(status_msg)
-                st.info(fix_msg)
-            elif prediction == 0:
-                st.warning(status_msg)
-                st.info(fix_msg)
-            else:
-                st.error(status_msg)
-                st.error(fix_msg)
-
-        with col_xai:
-            st.markdown("### Top 10 High-Impact Features")
-            top_indices = np.argsort(importances)[-10:]
-            top_features = input_df.columns[top_indices]
-            top_importances = importances[top_indices]
-            
-            fig_xai = px.bar(x=top_importances, y=top_features, orientation='h')
-            fig_xai.update_layout(
-                margin=dict(l=0, r=0, t=10, b=0), height=200,
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(showgrid=False, showticklabels=False),
-                yaxis=dict(tickfont=dict(size=10))
-            )
-            fig_xai.update_traces(marker_color='#eab308')
-            st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})
-
-    with st.container(border=True):
-        st.markdown("### Primary Subsystem Gauges")
-        def sleek_gauge(val, title, min_v, max_v, color):
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14}},
-                number={'font': {'color': color}},
-                gauge={'axis': {'range': [min_v, max_v]}, 'bar': {'color': color, 'thickness': 0.8}, 'bgcolor': "rgba(0,0,0,0.05)"}
-            ))
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=15, r=15, t=30, b=10))
-            return fig
-
-        g1, g2, g3, g4 = st.columns(4)
-        with g1: st.plotly_chart(sleek_gauge(rpm, "Engine (RPM)", 800, 2500, "#3b82f6"), use_container_width=True, config={'displayModeBar': False})
-        with g2: st.plotly_chart(sleek_gauge(temp, "Coolant (°C)", 70, 125, "#ef4444"), use_container_width=True, config={'displayModeBar': False})
-        with g3: st.plotly_chart(sleek_gauge(pressure, "Hydraulic (bar)", 100, 250, "#10b981"), use_container_width=True, config={'displayModeBar': False})
-        with g4: st.plotly_chart(sleek_gauge(battery, "Electrical (V)", 10, 15, "#f59e0b"), use_container_width=True, config={'displayModeBar': False})
-
-with tab_raw:
-    st.markdown("### SAE J1939 Live CAN Bus Datastream (100 Nodes)")
-    st.dataframe(input_df.T.rename(columns={0: "Live Sensor Value"}), height=500, use_container_width=True)
-
-if streaming:
-    st.rerun()
+with col_xai:
+    st.markdown("### AI Decision Drivers (Top 10)")
+    top_indices = np.argsort(importances)[-10:]
+    fig_xai = px.bar(x=importances[top_indices], y=input_df.columns[top_indices], orientation='h')
+    fig_xai.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=250, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(tickfont=dict(size=10)))
+    fig_xai.update_traces(marker_color='#eab308')
+    st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})

@@ -1,54 +1,50 @@
 import pandas as pd
 import numpy as np
 
-print("Generating High-Dimensional 100-Sensor Telemetry Data...")
+print("Generating 15-Primary Sensor Telemetry Data...")
 np.random.seed(42)
 n_samples = 3000
 
-# 1. Generate the 8 Macro Sensors
+# 1. Generate 15 Macro Sensors
 data = {
     'Engine_RPM': np.random.normal(1800, 200, n_samples),
     'Engine_Load_pct': np.random.normal(45, 10, n_samples),
     'Coolant_Temp_C': np.random.normal(85, 5, n_samples),
-    'Hydraulic_Pressure_bar': np.random.normal(200, 10, n_samples),
-    'Wheel_Slip_pct': np.random.normal(10, 2, n_samples),
+    'Exhaust_Gas_Temp_C': np.random.normal(400, 50, n_samples), # EGT
+    'Fuel_Rail_Pressure_bar': np.random.normal(1500, 100, n_samples),
+    'Intake_Air_Temp_C': np.random.normal(40, 5, n_samples),
     'Transmission_Temp_C': np.random.normal(75, 5, n_samples),
-    'Battery_Voltage_V': np.random.normal(13.8, 0.2, n_samples),
+    'Hydraulic_Pressure_bar': np.random.normal(200, 10, n_samples),
+    'Hydraulic_Flow_Lpm': np.random.normal(80, 5, n_samples),
     'PTO_Speed_RPM': np.random.normal(540, 10, n_samples),
+    'Draft_Load_kN': np.random.normal(15, 5, n_samples), # Pulling force
+    'Wheel_Slip_pct': np.random.normal(10, 2, n_samples),
+    'Radar_Speed_kmh': np.random.normal(12, 2, n_samples),
+    'Steering_Angle_deg': np.random.normal(0, 5, n_samples),
+    'Battery_Voltage_V': np.random.normal(13.8, 0.2, n_samples)
 }
 
-# 2. Generate 92 Micro-Sensors to reach exactly 100 features
-for i in range(1, 24): # 23 Engine localized sensors
-    data[f'Engine_Micro_Vib_{i}_Hz'] = data['Engine_RPM'] * np.random.uniform(0.01, 0.05)
-for i in range(1, 24): # 23 Hydraulic localized sensors
-    data[f'Hyd_Valve_Pressure_{i}_bar'] = data['Hydraulic_Pressure_bar'] * np.random.uniform(0.8, 1.2)
-for i in range(1, 24): # 23 Transmission localized sensors
-    data[f'Trans_Gear_Temp_{i}_C'] = data['Transmission_Temp_C'] * np.random.uniform(0.9, 1.1)
-for i in range(1, 24): # 23 Electrical localized sensors
-    data[f'CAN_Node_Volt_{i}_V'] = data['Battery_Voltage_V'] * np.random.uniform(0.95, 1.05)
+# 2. Generate 85 Micro-Sensors (Total = 100 features)
+for i in range(1, 22): data[f'Engine_Micro_{i}'] = data['Engine_RPM'] * np.random.uniform(0.01, 0.05)
+for i in range(1, 22): data[f'Hyd_Micro_{i}'] = data['Hydraulic_Pressure_bar'] * np.random.uniform(0.8, 1.2)
+for i in range(1, 22): data[f'Trans_Micro_{i}'] = data['Transmission_Temp_C'] * np.random.uniform(0.9, 1.1)
+for i in range(1, 23): data[f'Elec_Micro_{i}'] = data['Battery_Voltage_V'] * np.random.uniform(0.95, 1.05)
 
 data['Failure_Code'] = 0
-df = pd.DataFrame(data) # Total 101 columns (100 features + 1 target)
+df = pd.DataFrame(data)
 
-# 3. Inject Failures (The AI learns complex patterns across all 100 sensors)
-# HYD-001
-df.loc[1800:1950, 'Hydraulic_Pressure_bar'] = np.random.normal(120, 15, 151)
-df.loc[1800:1950, 'Engine_Load_pct'] = np.random.normal(85, 5, 151)
-df.loc[1800:1950, 'Failure_Code'] = 1
+# Inject Failures (Teaching the AI the new sensors)
+df.loc[1800:1950, ['Hydraulic_Pressure_bar', 'Hydraulic_Flow_Lpm']] = [120, 45]
+df.loc[1800:1950, 'Failure_Code'] = 1 # HYD
 
-# ENG-002
-df.loc[1951:2100, 'Coolant_Temp_C'] = np.random.normal(118, 4, 150)
-df.loc[1951:2100, 'Engine_RPM'] = np.random.normal(2300, 100, 150)
-df.loc[1951:2100, 'Failure_Code'] = 2
+df.loc[1951:2100, ['Coolant_Temp_C', 'Exhaust_Gas_Temp_C']] = [118, 680]
+df.loc[1951:2100, 'Failure_Code'] = 2 # ENG
 
-# TRN-003
-df.loc[2101:2300, 'Transmission_Temp_C'] = np.random.normal(115, 5, 200)
-df.loc[2101:2300, 'Wheel_Slip_pct'] = np.random.normal(30, 4, 200)
-df.loc[2101:2300, 'Failure_Code'] = 3
+df.loc[2101:2300, ['Transmission_Temp_C', 'Wheel_Slip_pct', 'Draft_Load_kN']] = [115, 30, 45]
+df.loc[2101:2300, 'Failure_Code'] = 3 # TRN
 
-# ELE-004
-df.loc[2301:2499, 'Battery_Voltage_V'] = np.random.normal(11.0, 0.3, 199)
-df.loc[2301:2499, 'Failure_Code'] = 4
+df.loc[2301:2499, ['Battery_Voltage_V', 'Fuel_Rail_Pressure_bar']] = [11.0, 900]
+df.loc[2301:2499, 'Failure_Code'] = 4 # ELE
 
 df.to_csv('industry_tractor_telemetry.csv', index=False)
-print(f"Success: Generated dataset with {df.shape[1]-1} sensors and 1 target variable.")
+print("Success: 15-Primary Sensor Dataset built.")
