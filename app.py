@@ -9,12 +9,11 @@ import numpy as np
 # 1. Page Configuration (Must be first)
 st.set_page_config(page_title="Tractor Telemetry OS", layout="wide", initial_sidebar_state="expanded")
 
-# 2. Lightweight CSS for clean typography and hiding default Streamlit clutter
+# 2. Lightweight CSS for clean typography (Removed header hiding so sidebar toggle works!)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* Sleek Title Header */
     .premium-header {
@@ -120,7 +119,8 @@ with tab_twin:
 
         with col_xai:
             st.markdown("### AI Decision Drivers")
-            fig_xai = px.bar(x=importances, y=input_df.columns, orientation='h', template="plotly_dark")
+            # Removed hardcoded colors so it adapts to Light/Dark mode automatically
+            fig_xai = px.bar(x=importances, y=input_df.columns, orientation='h')
             fig_xai.update_layout(
                 margin=dict(l=0, r=0, t=10, b=0),
                 height=200,
@@ -128,7 +128,7 @@ with tab_twin:
                 plot_bgcolor='rgba(0,0,0,0)',
                 xaxis_title="", yaxis_title="",
                 xaxis=dict(showgrid=False, showticklabels=False),
-                yaxis=dict(tickfont=dict(size=11, color="#e5e7eb"))
+                yaxis=dict(tickfont=dict(size=11)) 
             )
             fig_xai.update_traces(marker_color='#00cc96', marker_line_color='#047857', marker_line_width=1.5, opacity=0.9)
             st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})
@@ -138,16 +138,16 @@ with tab_twin:
         st.markdown("### Live ISOBUS Telemetry")
         def sleek_gauge(val, title, min_v, max_v, color):
             fig = go.Figure(go.Indicator(
-                mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14, 'color': '#e5e7eb'}},
+                mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14}},
                 number={'font': {'color': color}},
                 gauge={
-                    'axis': {'range': [min_v, max_v], 'tickwidth': 1, 'tickcolor': "#4b5563"},
+                    'axis': {'range': [min_v, max_v], 'tickwidth': 1},
                     'bar': {'color': color, 'thickness': 0.8},
-                    'bgcolor': "#1f2937",
+                    'bgcolor': "rgba(0,0,0,0.05)",
                     'borderwidth': 0
                 }
             ))
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=200, margin=dict(l=15, r=15, t=30, b=10))
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=15, r=15, t=30, b=10))
             return fig
 
         g1, g2, g3, g4 = st.columns(4)
