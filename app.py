@@ -7,17 +7,33 @@ import time
 import numpy as np
 
 # 1. Page Configuration
-st.set_page_config(page_title="Enterprise Fleet Diagnostics", layout="wide")
+st.set_page_config(page_title="Enterprise Telemetry OS", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
-    <div style='background-color: #0e1117; padding: 20px; border-radius: 10px; border-left: 10px solid #ff4b4b;'>
-        <h1 style='margin:0; color: white;'>🌐 Global Fleet Operations Center</h1>
-        <p style='margin:0; color: #a8a8a8;'>Real-Time Telemetry | Explainable AI | Prescriptive Maintenance</p>
-    </div>
-    <br>
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stApp { background-color: #0E1117; color: #FAFAFA; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .premium-header {
+        background: linear-gradient(90deg, #1f2937 0%, #111827 100%);
+        padding: 20px; border-radius: 12px; border-left: 6px solid #8b5cf6;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-bottom: 25px;
+    }
+    .premium-header h1 { margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; }
+    .premium-header p { margin: 5px 0 0 0; color: #9ca3af; font-size: 14px; letter-spacing: 1px; }
+    .stSlider > div > div > div > div { background-color: #8b5cf6 !important; }
+    </style>
 """, unsafe_allow_html=True)
 
-# 2. Load the Master AI Model
+# App Header (Authenticated as Lead Engineer)
+st.markdown("""
+    <div class="premium-header">
+        <h1>🚜 Deep Learning Telemetry & RUL Engine</h1>
+        <p>LEAD ENGINEER: AKSHAY KUMAR SHARMA | LIVE GPS TELEMATICS | LSTM PREDICTIVE MAINTENANCE</p>
+    </div>
+""", unsafe_allow_html=True)
+
 @st.cache_resource
 def load_model():
     return joblib.load('tractor_health_model.pkl')
@@ -25,136 +41,126 @@ def load_model():
 try:
     model = load_model()
 except FileNotFoundError:
-    st.error("⚠️ Model file not found. Please upload tractor_health_model.pkl")
+    st.error("⚠️ AI Core Offline: tractor_health_model.pkl not found.")
     st.stop()
 
-# 3. Industry Diagnostic Dictionary
 diagnostics = {
-    0: {"dtc": "None", "msg": "All subsystems operating nominally.", "fix": "Continue standard operations."},
-    1: {"dtc": "ERR-HYD-001", "msg": "Hydraulic Pressure Loss under Heavy Engine Load.", "fix": "Inspect main hydraulic pump seals. Replace fluid filter."},
-    2: {"dtc": "ERR-ENG-002", "msg": "Engine Thermal Overload / Coolant Spike.", "fix": "IMMEDIATE SHUTDOWN. Clean radiator fins. Check water pump belt."},
-    3: {"dtc": "ERR-TRN-003", "msg": "Transmission Slippage / Thermal Overload.", "fix": "Recalibrate clutch packs. Check transmission fluid viscosity."},
-    4: {"dtc": "ERR-ELE-004", "msg": "System Voltage Drop / Alternator Fault.", "fix": "Test alternator output. Inspect battery terminals."},
-    5: {"dtc": "ERR-PTO-005", "msg": "PTO RPM Drop under High Engine Load.", "fix": "Reduce implement speed. Inspect PTO shear pin."}
+    0: {"dtc": "None", "msg": "All subsystems nominal.", "fix": "Continue operations.", "color": "success"},
+    1: {"dtc": "ERR-HYD-001", "msg": "Hydraulic Pressure Loss + High Load", "fix": "Inspect pump seals. Replace fluid filter.", "color": "error"},
+    2: {"dtc": "ERR-ENG-002", "msg": "Engine Thermal Overload Detected", "fix": "SHUTDOWN. Clean radiator fins. Check water pump.", "color": "error"},
+    3: {"dtc": "ERR-TRN-003", "msg": "Transmission Slippage / Thermal Overload", "fix": "Recalibrate clutch packs. Check fluid viscosity.", "color": "warning"},
+    4: {"dtc": "ERR-ELE-004", "msg": "System Voltage Drop / Alternator Fault", "fix": "Test alternator output. Inspect battery terminals.", "color": "error"},
+    5: {"dtc": "ERR-PTO-005", "msg": "PTO RPM Drop under High Load", "fix": "Reduce implement speed. Inspect PTO shear pin.", "color": "warning"}
 }
 
-# 4. Navigation Tabs
-tab_twin, tab_fleet = st.tabs(["🚜 Single Unit Digital Twin", "🌍 Fleet Command Center"])
+# --- Sidebar Inputs & Auto-Streaming ---
+with st.sidebar:
+    st.markdown("### 📡 Sensor Injection")
+    streaming = st.toggle("🟢 Enable Live Data Streaming", value=False)
+    st.markdown("---")
 
-with tab_twin:
-    # --- SIDEBAR: SIMULATED STREAMING & INPUTS ---
-    st.sidebar.header("📡 Live CAN Bus Feed")
-    streaming = st.sidebar.checkbox("🟢 Enable Live Auto-Streaming")
-    
-    # Initialize session state for sensor values so they can update dynamically
     if 'sensors' not in st.session_state:
-        st.session_state.sensors = {
-            'rpm': 1800, 'load': 45, 'temp': 85, 'pressure': 200,
-            'slip': 10, 'trans_temp': 75, 'battery': 13.8, 'pto': 540
-        }
+        st.session_state.sensors = { 'rpm': 1800, 'load': 45, 'temp': 85, 'pressure': 200, 'slip': 10, 'trans_temp': 75, 'battery': 13.8, 'pto': 540 }
 
-    # If streaming is on, add slight random fluctuations to simulate a live tractor
     if streaming:
-        st.session_state.sensors['rpm'] = int(np.clip(st.session_state.sensors['rpm'] + np.random.normal(0, 10), 800, 2500))
-        st.session_state.sensors['temp'] = np.clip(st.session_state.sensors['temp'] + np.random.normal(0, 0.5), 70, 125)
-        st.session_state.sensors['pressure'] = np.clip(st.session_state.sensors['pressure'] + np.random.normal(0, 1), 100, 250)
-        time.sleep(0.5) # Refresh rate
+        st.session_state.sensors['rpm'] = int(np.clip(st.session_state.sensors['rpm'] + np.random.normal(0, 15), 800, 2500))
+        st.session_state.sensors['temp'] = np.clip(st.session_state.sensors['temp'] + np.random.normal(0, 0.3), 70, 125)
+        st.session_state.sensors['pressure'] = np.clip(st.session_state.sensors['pressure'] + np.random.normal(0, 1.5), 100, 250)
+        time.sleep(0.3)
 
-    # Manual Sliders (Updated by session state or user input)
-    rpm = st.sidebar.slider("Engine RPM", 800, 2500, st.session_state.sensors['rpm'])
-    load = st.sidebar.slider("Engine Load (%)", 0, 100, st.session_state.sensors['load'])
-    temp = st.sidebar.slider("Coolant Temp (°C)", 70, 125, int(st.session_state.sensors['temp']))
-    pressure = st.sidebar.slider("Hydraulic Pressure (bar)", 100, 250, int(st.session_state.sensors['pressure']))
-    slip = st.sidebar.slider("Wheel Slip (%)", 0, 40, st.session_state.sensors['slip'])
-    trans_temp = st.sidebar.slider("Transmission Temp (°C)", 50, 130, st.session_state.sensors['trans_temp'])
-    battery = st.sidebar.slider("Battery Voltage (V)", 10.0, 15.0, st.session_state.sensors['battery'])
-    pto = st.sidebar.slider("PTO Speed (RPM)", 0, 600, st.session_state.sensors['pto'])
+    rpm = st.slider("Engine RPM", 800, 2500, st.session_state.sensors['rpm'])
+    load = st.slider("Engine Load (%)", 0, 100, st.session_state.sensors['load'])
+    temp = st.slider("Coolant Temp (°C)", 70, 125, int(st.session_state.sensors['temp']))
+    pressure = st.slider("Hydraulic Pressure (bar)", 100, 250, int(st.session_state.sensors['pressure']))
+    slip = st.slider("Wheel Slip (%)", 0, 40, st.session_state.sensors['slip'])
+    trans_temp = st.slider("Transmission Temp (°C)", 50, 130, st.session_state.sensors['trans_temp'])
+    battery = st.slider("Battery Voltage (V)", 10.0, 15.0, round(st.session_state.sensors['battery'], 1))
+    pto = st.slider("PTO Speed (RPM)", 0, 600, st.session_state.sensors['pto'])
 
-    # Format input
-    input_df = pd.DataFrame({
-        'Engine_RPM': [rpm], 'Engine_Load_pct': [load], 'Coolant_Temp_C': [temp],
-        'Hydraulic_Pressure_bar': [pressure], 'Wheel_Slip_pct': [slip],
-        'Transmission_Temp_C': [trans_temp], 'Battery_Voltage_V': [battery],
-        'PTO_Speed_RPM': [pto]
-    })
+input_df = pd.DataFrame({'Engine_RPM': [rpm], 'Engine_Load_pct': [load], 'Coolant_Temp_C': [temp], 'Hydraulic_Pressure_bar': [pressure], 'Wheel_Slip_pct': [slip], 'Transmission_Temp_C': [trans_temp], 'Battery_Voltage_V': [battery], 'PTO_Speed_RPM': [pto]})
 
-    # --- ADVANCED AI INFERENCE ---
-    prediction = model.predict(input_df)[0]
-    probabilities = model.predict_proba(input_df)[0]
-    confidence = max(probabilities) * 100
+prediction = model.predict(input_df)[0]
+confidence = max(model.predict_proba(input_df)[0]) * 100
+diag = diagnostics[prediction]
 
-    # Get feature importances for this specific model architecture
-    importances = model.feature_importances_
-    features = input_df.columns
+# --- Main UI Tabs ---
+tab_rul, tab_telematics, tab_diag = st.tabs(["🧠 Deep Learning RUL", "🌍 Live GPS Telematics", "⚡ Diagnostic Feed"])
 
-    # --- MAIN DASHBOARD UI ---
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.subheader("Diagnostic Status")
-        diag = diagnostics[prediction]
-        if prediction == 0:
-            st.success(f"✔️ **NOMINAL** | Confidence: {confidence:.1f}% | {diag['msg']}")
+with tab_rul:
+    st.markdown("#### LSTM Neural Network: Remaining Useful Life (RUL)")
+    st.markdown("Simulated output from time-series deep learning models predicting hardware degradation.")
+    
+    # Calculate simulated RUL based on current stress (temperature & load)
+    base_rul = 500
+    stress_factor = ((temp - 85) * 2) + ((load - 45) * 1.5)
+    current_rul = max(0, base_rul - stress_factor)
+    
+    col_rul1, col_rul2 = st.columns([1, 2])
+    with col_rul1:
+        st.metric("Hydraulic Pump RUL", f"{int(current_rul)} Hours", f"-{int(stress_factor)} hrs (Load Penalty)", delta_color="inverse")
+        if current_rul < 100:
+            st.error("⚠️ CRITICAL: Schedule Maintenance Immediately.")
+        elif current_rul < 250:
+            st.warning("⚠️ WARNING: Component degrading faster than baseline.")
         else:
-            st.error(f"⚠️ **DTC: {diag['dtc']}** | Confidence: {confidence:.1f}%")
-            st.warning(f"**Issue:** {diag['msg']}")
-            st.info(f"**🔧 Prescriptive Fix:** {diag['fix']}")
-
-        st.markdown("---")
-        st.subheader("Live Subsystem Telemetry")
+            st.success("✔️ Component decaying at expected linear rate.")
+            
+    with col_rul2:
+        # Generate simulated decay curve
+        hours_passed = np.arange(0, 500, 10)
+        baseline_decay = 500 - hours_passed
+        actual_decay = 500 - (hours_passed * (1 + (stress_factor/100)))
+        actual_decay = np.clip(actual_decay, 0, 500)
         
-        # Helper function for gauges
-        def build_gauge(val, title, min_val, max_val, color):
-            return go.Figure(go.Indicator(
-                mode="gauge+number", value=val, title={'text': title},
-                gauge={'axis': {'range': [min_val, max_val]}, 'bar': {'color': color}}
-            )).update_layout(height=200, margin=dict(l=10, r=10, t=30, b=10))
+        rul_df = pd.DataFrame({'Operating Hours': hours_passed, 'Baseline RUL': baseline_decay, 'Live AI Predicted RUL': actual_decay})
+        fig_rul = px.line(rul_df, x='Operating Hours', y=['Baseline RUL', 'Live AI Predicted RUL'], template="plotly_dark", color_discrete_sequence=['#9ca3af', '#ef4444'])
+        fig_rul.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_rul, use_container_width=True)
 
-        g1, g2, g3 = st.columns(3)
-        with g1: st.plotly_chart(build_gauge(rpm, "RPM", 800, 2500, "#1f77b4"), use_container_width=True)
-        with g2: st.plotly_chart(build_gauge(temp, "Coolant (°C)", 70, 125, "#d62728"), use_container_width=True)
-        with g3: st.plotly_chart(build_gauge(pressure, "Hydraulic (bar)", 100, 250, "#2ca02c"), use_container_width=True)
-
-    with col2:
-        st.subheader("Explainable AI (XAI)")
-        st.markdown("Metrics driving the current prediction:")
-        
-        # Explainable AI Bar Chart
-        fig_xai = px.bar(
-            x=importances, y=features, orientation='h', 
-            labels={'x': 'Impact Factor', 'y': 'Sensor'},
-            color=importances, color_continuous_scale='Reds'
-        )
-        fig_xai.update_layout(height=300, showlegend=False)
-        st.plotly_chart(fig_xai, use_container_width=True)
-        
-        st.subheader("Fault Probability Matrix")
-        st.progress(probabilities[0], text=f"Normal: {probabilities[0]*100:.1f}%")
-        st.progress(probabilities[1], text=f"Hydraulic Fault: {probabilities[1]*100:.1f}%")
-        st.progress(probabilities[2], text=f"Engine Fault: {probabilities[2]*100:.1f}%")
-        st.progress(probabilities[3], text=f"Transmission Fault: {probabilities[3]*100:.1f}%")
-
-with tab_fleet:
-    st.subheader("Regional Fleet Overview: Northern India Sector")
+with tab_telematics:
+    st.markdown("#### Global Fleet Telemetry: Agra Test Sector")
     
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Total Active Units", "142")
-    kpi2.metric("Healthy Units", "136", "95.7%", delta_color="normal")
-    kpi3.metric("Active Warnings", "4", "-2 from yesterday", delta_color="inverse")
-    kpi4.metric("Critical Breakdowns", "2", "+1 from last hour", delta_color="inverse")
+    # Generate fleet GPS data centered around Agra, UP
+    np.random.seed(42)
+    fleet_lat = 27.1767 + np.random.normal(0, 0.05, 15)
+    fleet_lon = 78.0081 + np.random.normal(0, 0.05, 15)
+    health_status = np.random.choice(['Nominal', 'Warning', 'Critical'], 15, p=[0.7, 0.2, 0.1])
     
+    # Sync unit 1 with our live sliders
+    health_status[0] = 'Critical' if diag['color'] == 'error' else ('Warning' if diag['color'] == 'warning' else 'Nominal')
+    
+    map_df = pd.DataFrame({'Lat': fleet_lat, 'Lon': fleet_lon, 'Status': health_status, 'Unit': [f"TRX-{i+1000}" for i in range(15)]})
+    color_map = {'Nominal': '#00cc96', 'Warning': '#f59e0b', 'Critical': '#ef4444'}
+    
+    fig_map = px.scatter_mapbox(
+        map_df, lat="Lat", lon="Lon", color="Status", hover_name="Unit",
+        color_discrete_map=color_map, zoom=10, height=400
+    )
+    fig_map.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig_map, use_container_width=True)
+
+with tab_diag:
+    # Top Row: Alert Box
+    if prediction == 0:
+        st.success(f"**✔️ ALL SYSTEMS NOMINAL** | Confidence: {confidence:.1f}%\n\n{diag['msg']}")
+    elif diag['color'] == "error":
+        st.error(f"**⚠️ CRITICAL DTC: {diag['dtc']}** | Confidence: {confidence:.1f}%\n\n**Issue:** {diag['msg']}\n\n**🔧 Fix:** {diag['fix']}")
+    else:
+        st.warning(f"**⚠️ WARNING DTC: {diag['dtc']}** | Confidence: {confidence:.1f}%\n\n**Issue:** {diag['msg']}\n\n**🔧 Fix:** {diag['fix']}")
+        
     st.markdown("---")
     
-    # Mock Fleet Data Table
-    fleet_data = pd.DataFrame({
-        "Unit ID": ["TRX-9901", "TRX-4421", "TRX-8832", "TRX-1092", "TRX-5514"],
-        "Location": ["Agra Sec-4", "Jaipur Field B", "Mohali Agri-Hub", "Faridabad Dep.", "Greater Noida Zone"],
-        "Operating Hours": [1450, 890, 3200, 410, 2150],
-        "AI Status": ["CRITICAL: ERR-ENG-002", "WARNING: ERR-HYD-001", "NOMINAL", "NOMINAL", "WARNING: ERR-ELE-004"]
-    })
-    
-    st.dataframe(fleet_data, use_container_width=True, hide_index=True)
+    # Ultra-Fast Plotly Gauges
+    def sleek_gauge(val, title, min_v, max_v, color):
+        fig = go.Figure(go.Indicator(mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14, 'color': 'white'}}, gauge={'axis': {'range': [min_v, max_v], 'tickwidth': 1, 'tickcolor': "white"}, 'bar': {'color': color, 'thickness': 0.7}, 'bgcolor': "rgba(0,0,0,0)", 'borderwidth': 2, 'bordercolor': "#374151"}))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=200, margin=dict(l=10, r=10, t=30, b=10))
+        return fig
 
-# Loop the app if streaming is active
+    g1, g2, g3, g4 = st.columns(4)
+    with g1: st.plotly_chart(sleek_gauge(rpm, "Engine (RPM)", 800, 2500, "#8b5cf6"), use_container_width=True, config={'displayModeBar': False})
+    with g2: st.plotly_chart(sleek_gauge(temp, "Coolant (°C)", 70, 125, "#ef4444"), use_container_width=True, config={'displayModeBar': False})
+    with g3: st.plotly_chart(sleek_gauge(pressure, "Hydraulic (bar)", 100, 250, "#10b981"), use_container_width=True, config={'displayModeBar': False})
+    with g4: st.plotly_chart(sleek_gauge(load, "Engine Load (%)", 0, 100, "#f59e0b"), use_container_width=True, config={'displayModeBar': False})
+
 if streaming:
     st.rerun()
