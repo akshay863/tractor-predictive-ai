@@ -23,7 +23,7 @@ st.markdown("""
 st.markdown("""
     <div class="premium-header">
         <h1>🚜 100-Channel R&D Diagnostics Command</h1>
-        <p>PROCESSING 100 SIMULTANEOUS SENSORS • DYNAMIC CONTEXTUAL GENERATION • HIGH-DIMENSIONAL XAI</p>
+        <p>PROCESSING 100 SIMULTANEOUS SENSORS • DYNAMIC PRESCRIPTIVE MAINTENANCE • HIGH-DIMENSIONAL XAI</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -80,45 +80,80 @@ prediction = model.predict(input_df)[0]
 confidence = max(model.predict_proba(input_df)[0]) * 100
 importances = model.feature_importances_
 
-# --- DYNAMIC SENTENCE GENERATOR ---
-def generate_dynamic_status(p_rpm, p_load, p_temp, p_press, p_trans, p_slip, p_batt, p_pto, dtc):
+# --- DYNAMIC NLP HEURISTIC ENGINE ---
+def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_press, p_trans, p_slip, p_batt, p_pto, dtc):
     conditions = []
+    fixes = []
     
-    # Analyze the specific combination of current inputs
-    if p_rpm > 2200: conditions.append(f"overspeeding at {p_rpm} RPM")
-    elif p_rpm < 1000: conditions.append(f"idling low at {p_rpm} RPM")
+    # 1. Evaluate Engine RPM
+    if p_rpm > 2200:
+        conditions.append(f"overspeeding at {p_rpm} RPM")
+        fixes.append("Throttle down engine immediately to prevent valvetrain float.")
+    elif p_rpm < 1000 and p_load > 60:
+        conditions.append(f"lugging the engine at {p_rpm} RPM")
+        fixes.append("Downshift transmission to raise engine RPM into the torque curve.")
     
-    if p_load > 85: conditions.append(f"sustaining severe mechanical load ({p_load}%)")
+    # 2. Evaluate Engine Load
+    if p_load > 85:
+        conditions.append(f"sustaining severe mechanical load ({p_load}%)")
+        fixes.append("Reduce implement draft depth or shift to a lower gear to relieve engine stress.")
     
-    if p_temp > 105: conditions.append(f"experiencing critical thermal stress ({p_temp}°C)")
+    # 3. Evaluate Coolant Temp
+    if p_temp > 105:
+        conditions.append(f"experiencing critical thermal stress ({p_temp}°C)")
+        fixes.append("Inspect radiator fins for field debris and verify coolant reservoir levels.")
     
-    if p_press < 140: conditions.append(f"losing hydraulic flow ({p_press} bar)")
-    elif p_press > 230: conditions.append(f"pushing extreme hydraulic pressure ({p_press} bar)")
+    # 4. Evaluate Hydraulic Pressure
+    if p_press < 140:
+        conditions.append(f"losing hydraulic flow ({p_press} bar)")
+        fixes.append("Check main hydraulic pump seals and verify fluid levels.")
+    elif p_press > 230:
+        conditions.append(f"pushing extreme hydraulic pressure ({p_press} bar)")
+        fixes.append("Inspect hydraulic pressure relief valve for blockage or stickiness.")
     
-    if p_trans > 110: conditions.append(f"overheating the transmission clutch packs ({p_trans}°C)")
+    # 5. Evaluate Transmission Temp
+    if p_trans > 110:
+        conditions.append(f"overheating the transmission clutch packs ({p_trans}°C)")
+        fixes.append("Disengage implement and allow transmission fluid to circulate and cool.")
     
-    if p_slip > 25: conditions.append(f"suffering heavy traction loss ({p_slip}% slip)")
+    # 6. Evaluate Traction / Slip
+    if p_slip > 25:
+        conditions.append(f"suffering heavy traction loss ({p_slip}% slip)")
+        fixes.append("Engage differential lock or add wheel/suitcase weights for better soil traction.")
     
-    if p_batt < 12.0: conditions.append("detecting dangerous voltage drops")
+    # 7. Evaluate Electrical
+    if p_batt < 12.0:
+        conditions.append(f"detecting dangerous voltage drops ({p_batt}V)")
+        fixes.append("Test alternator serpentine belt tension and clean battery terminals.")
     
-    if p_pto < 500 and p_load > 60: conditions.append("bogging down the PTO shaft under draft load")
+    # 8. Evaluate PTO
+    if p_pto < 500 and p_load > 60:
+        conditions.append("bogging down the PTO shaft under heavy draft")
+        fixes.append("Check PTO shear pin and reduce PTO driveline operating angle.")
 
-    # Construct the final highly-customized sentence
+    # Construct the Final Output
     if dtc == 0:
         if not conditions:
-            return "✅ **STATUS:** The vehicle is operating flawlessly within the nominal baseline. No stress signatures detected across the 100-node network."
+            status = "✅ **STATUS:** The vehicle is operating flawlessly within the nominal baseline. No stress signatures detected across the 100-node network."
+            fix_str = "✔️ Continue standard field operations."
         else:
-            return f"⚠️ **STATUS:** The core AI confirms no critical failures yet, however, the system is currently " + ", and ".join(conditions) + "."
+            status = f"⚠️ **STATUS:** The core AI confirms no critical failures yet, however, the system is currently " + ", and ".join(conditions) + "."
+            fix_list = "\n".join([f"- {fix}" for fix in fixes])
+            fix_str = f"**🔧 Preventative Actions Recommended:**\n{fix_list}"
+        return status, fix_str
     
-    # If a failure is happening, combine the AI diagnosis with the live physics
+    # If a failure is happening
     dtc_names = {1: "HYD-001 (Hydraulic)", 2: "ENG-002 (Engine)", 3: "TRN-003 (Transmission)", 4: "ELE-004 (Electrical)", 5: "PTO-005 (PTO)"}
     fault = dtc_names.get(dtc, "Unknown")
     
-    base_msg = f"❌ **CRITICAL AI FAULT DETECTED [{fault}]:** The predictive model has identified a failure signature because the machine is "
-    return base_msg + ", and ".join(conditions) + "."
+    status = f"❌ **CRITICAL AI FAULT DETECTED [{fault}]:** The predictive model has identified a failure signature because the machine is " + ", and ".join(conditions) + "."
+    fix_list = "\n".join([f"- {fix}" for fix in fixes])
+    fix_str = f"**🛠️ IMMEDIATE TECHNICIAN ACTIONS:**\n{fix_list}"
+    
+    return status, fix_str
 
-# Generate the custom sentence for this exact millisecond
-custom_status_message = generate_dynamic_status(rpm, load, temp, pressure, trans_temp, slip, battery, pto, prediction)
+# Generate the custom sentences
+status_msg, fix_msg = generate_dynamic_diagnostics(rpm, load, temp, pressure, trans_temp, slip, battery, pto, prediction)
 
 # --- UI Tabs ---
 tab_diag, tab_raw = st.tabs(["⚡ Core Diagnostics", "🔢 Raw 100-Channel CAN Feed"])
@@ -129,11 +164,16 @@ with tab_diag:
         with col_alert:
             st.markdown("### 100-Node Health Status")
             
-            # Print the dynamically generated sentence
-            if prediction == 0:
-                st.info(custom_status_message)
+            # Print dynamically generated status and fixes
+            if prediction == 0 and "flawlessly" in status_msg:
+                st.success(status_msg)
+                st.info(fix_msg)
+            elif prediction == 0:
+                st.warning(status_msg)
+                st.info(fix_msg)
             else:
-                st.error(custom_status_message)
+                st.error(status_msg)
+                st.error(fix_msg)
 
         with col_xai:
             st.markdown("### Top 10 High-Impact Features")
