@@ -23,7 +23,7 @@ st.markdown("""
 st.markdown("""
     <div class="premium-header">
         <h1>🚜 100-Channel R&D Diagnostics Command</h1>
-        <p>PROCESSING 100 SIMULTANEOUS SENSORS • SAE J1939 CAN PROTOCOL • HIGH-DIMENSIONAL XAI</p>
+        <p>PROCESSING 100 SIMULTANEOUS SENSORS • DYNAMIC CONTEXTUAL GENERATION • HIGH-DIMENSIONAL XAI</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -36,15 +36,6 @@ try:
 except FileNotFoundError:
     st.error("⚠️ AI Core Offline: tractor_health_model.pkl not found.")
     st.stop()
-
-diagnostics = {
-    0: {"dtc": "None", "msg": "All 100 subsystems nominal.", "fix": "Continue operations.", "color": "success"},
-    1: {"dtc": "ERR-HYD-001", "msg": "Hydraulic Pressure Loss + High Load", "fix": "Inspect pump seals.", "color": "error"},
-    2: {"dtc": "ERR-ENG-002", "msg": "Engine Thermal Overload Detected", "fix": "SHUTDOWN. Clean radiator fins.", "color": "error"},
-    3: {"dtc": "ERR-TRN-003", "msg": "Transmission Slippage", "fix": "Recalibrate clutch packs.", "color": "warning"},
-    4: {"dtc": "ERR-ELE-004", "msg": "System Voltage Drop", "fix": "Test alternator output.", "color": "error"},
-    5: {"dtc": "ERR-PTO-005", "msg": "PTO RPM Drop", "fix": "Reduce implement speed.", "color": "warning"}
-}
 
 # --- Sidebar Inputs ---
 with st.sidebar:
@@ -76,7 +67,7 @@ input_dict = {
     'Transmission_Temp_C': trans_temp, 'Battery_Voltage_V': battery, 'PTO_Speed_RPM': pto
 }
 
-np.random.seed(int(time.time())) # Give micro-sensors a live "flutter"
+np.random.seed(int(time.time())) 
 for i in range(1, 24): input_dict[f'Engine_Micro_Vib_{i}_Hz'] = rpm * np.random.uniform(0.01, 0.05)
 for i in range(1, 24): input_dict[f'Hyd_Valve_Pressure_{i}_bar'] = pressure * np.random.uniform(0.8, 1.2)
 for i in range(1, 24): input_dict[f'Trans_Gear_Temp_{i}_C'] = trans_temp * np.random.uniform(0.9, 1.1)
@@ -88,7 +79,46 @@ input_df = pd.DataFrame([input_dict])
 prediction = model.predict(input_df)[0]
 confidence = max(model.predict_proba(input_df)[0]) * 100
 importances = model.feature_importances_
-diag = diagnostics[prediction]
+
+# --- DYNAMIC SENTENCE GENERATOR ---
+def generate_dynamic_status(p_rpm, p_load, p_temp, p_press, p_trans, p_slip, p_batt, p_pto, dtc):
+    conditions = []
+    
+    # Analyze the specific combination of current inputs
+    if p_rpm > 2200: conditions.append(f"overspeeding at {p_rpm} RPM")
+    elif p_rpm < 1000: conditions.append(f"idling low at {p_rpm} RPM")
+    
+    if p_load > 85: conditions.append(f"sustaining severe mechanical load ({p_load}%)")
+    
+    if p_temp > 105: conditions.append(f"experiencing critical thermal stress ({p_temp}°C)")
+    
+    if p_press < 140: conditions.append(f"losing hydraulic flow ({p_press} bar)")
+    elif p_press > 230: conditions.append(f"pushing extreme hydraulic pressure ({p_press} bar)")
+    
+    if p_trans > 110: conditions.append(f"overheating the transmission clutch packs ({p_trans}°C)")
+    
+    if p_slip > 25: conditions.append(f"suffering heavy traction loss ({p_slip}% slip)")
+    
+    if p_batt < 12.0: conditions.append("detecting dangerous voltage drops")
+    
+    if p_pto < 500 and p_load > 60: conditions.append("bogging down the PTO shaft under draft load")
+
+    # Construct the final highly-customized sentence
+    if dtc == 0:
+        if not conditions:
+            return "✅ **STATUS:** The vehicle is operating flawlessly within the nominal baseline. No stress signatures detected across the 100-node network."
+        else:
+            return f"⚠️ **STATUS:** The core AI confirms no critical failures yet, however, the system is currently " + ", and ".join(conditions) + "."
+    
+    # If a failure is happening, combine the AI diagnosis with the live physics
+    dtc_names = {1: "HYD-001 (Hydraulic)", 2: "ENG-002 (Engine)", 3: "TRN-003 (Transmission)", 4: "ELE-004 (Electrical)", 5: "PTO-005 (PTO)"}
+    fault = dtc_names.get(dtc, "Unknown")
+    
+    base_msg = f"❌ **CRITICAL AI FAULT DETECTED [{fault}]:** The predictive model has identified a failure signature because the machine is "
+    return base_msg + ", and ".join(conditions) + "."
+
+# Generate the custom sentence for this exact millisecond
+custom_status_message = generate_dynamic_status(rpm, load, temp, pressure, trans_temp, slip, battery, pto, prediction)
 
 # --- UI Tabs ---
 tab_diag, tab_raw = st.tabs(["⚡ Core Diagnostics", "🔢 Raw 100-Channel CAN Feed"])
@@ -98,16 +128,15 @@ with tab_diag:
         col_alert, col_xai = st.columns([1.3, 1])
         with col_alert:
             st.markdown("### 100-Node Health Status")
+            
+            # Print the dynamically generated sentence
             if prediction == 0:
-                st.success(f"**✔️ ALL 100 SENSORS NOMINAL** | AI Confidence: {confidence:.1f}%\n\n**Status:** {diag['msg']}")
-            elif diag['color'] == "error":
-                st.error(f"**⚠️ CRITICAL DTC: {diag['dtc']}** | AI Confidence: {confidence:.1f}%\n\n**Issue:** {diag['msg']}")
+                st.info(custom_status_message)
             else:
-                st.warning(f"**⚠️ WARNING DTC: {diag['dtc']}** | AI Confidence: {confidence:.1f}%\n\n**Issue:** {diag['msg']}")
+                st.error(custom_status_message)
 
         with col_xai:
             st.markdown("### Top 10 High-Impact Features")
-            # Get the top 10 most important features out of the 100
             top_indices = np.argsort(importances)[-10:]
             top_features = input_df.columns[top_indices]
             top_importances = importances[top_indices]
@@ -141,8 +170,6 @@ with tab_diag:
 
 with tab_raw:
     st.markdown("### SAE J1939 Live CAN Bus Datastream (100 Nodes)")
-    st.markdown("This matrix proves the background processing of 92 micro-sensors localized across the vehicle frame.")
-    # Show the full 100 column dataframe, transposed so it reads like a list of sensors
     st.dataframe(input_df.T.rename(columns={0: "Live Sensor Value"}), height=500, use_container_width=True)
 
 if streaming:
