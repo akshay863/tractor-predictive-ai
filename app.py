@@ -23,17 +23,21 @@ st.markdown("""
 st.markdown("""
     <div class="premium-header">
         <h1>🚜 15-Parameter Advanced R&D Command</h1>
-        <p>100-NODE CAN BUS • DYNAMIC PRESCRIPTIVE MAINTENANCE • MULTI-SENSOR NLP</p>
+        <p>DYNAMIC PRESCRIPTIVE MAINTENANCE • MULTI-SENSOR NLP • VISUAL TELEMETRY SUITE</p>
     </div>
 """, unsafe_allow_html=True)
 
 @st.cache_resource
-def load_model(): return joblib.load('tractor_health_model.pkl')
+def load_model(): 
+    return joblib.load('tractor_health_model.pkl')
 
-try: model = load_model()
-except FileNotFoundError: st.stop()
+try: 
+    model = load_model()
+except FileNotFoundError: 
+    st.error("⚠️ AI Core Offline: tractor_health_model.pkl not found.")
+    st.stop()
 
-# --- Sidebar Inputs (Now 15 Parameters!) ---
+# --- Sidebar Inputs (15 Parameters) ---
 with st.sidebar:
     st.markdown("### 📡 Macro Control Hub")
     streaming = st.toggle("🟢 Auto-Streaming", value=False)
@@ -59,7 +63,7 @@ with st.sidebar:
     pressure = st.slider("Hydraulic Pressure (bar)", 100, 250, int(st.session_state.sensors['pressure']))
     flow = st.slider("Hydraulic Flow (L/min)", 10, 120, st.session_state.sensors['flow'])
     pto = st.slider("PTO Speed (RPM)", 0, 600, st.session_state.sensors['pto'])
-    draft = st.slider("Draft Load (kN)", 0, 60, st.session_state.sensors['draft'], help="Pulling resistance of the implement")
+    draft = st.slider("Draft Load (kN)", 0, 60, st.session_state.sensors['draft'])
 
     st.markdown("#### Chassis & Electrical")
     slip = st.slider("Wheel Slip (%)", 0, 50, st.session_state.sensors['slip'])
@@ -88,75 +92,94 @@ prediction = model.predict(input_df)[0]
 confidence = max(model.predict_proba(input_df)[0]) * 100
 importances = model.feature_importances_
 
-# --- MASSIVE DYNAMIC NLP HEURISTIC ENGINE ---
+# --- DYNAMIC NLP HEURISTIC ENGINE ---
 def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_egt, p_fuel, p_intake, p_trans, p_press, p_flow, p_pto, p_draft, p_slip, p_batt):
     conditions, fixes = [], []
-    
-    # Engine & Air/Fuel
-    if p_load > 85:
-        conditions.append(f"sustaining severe mechanical load ({p_load}%)")
-        fixes.append("Shift to a lower gear to relieve engine torque stress.")
-    if p_temp > 105:
-        conditions.append(f"experiencing critical coolant thermal stress ({p_temp}°C)")
-        fixes.append("Inspect radiator fins for debris and verify water pump operation.")
-    if p_egt > 650:
-        conditions.append(f"pushing dangerous exhaust gas temperatures ({p_egt}°C)")
-        fixes.append("Decrease engine load immediately to prevent turbocharger failure. Allow engine to idle to cool turbo bearings.")
-    if p_fuel < 1000 and p_load > 50:
-        conditions.append(f"losing common-rail fuel pressure ({p_fuel} bar)")
-        fixes.append("Replace primary and secondary diesel fuel filters (possible cavitation).")
-    if p_intake > 60:
-        conditions.append(f"breathing overheated intake air ({p_intake}°C)")
-        fixes.append("Clean intercooler fins and check air filter restriction indicator.")
+    if p_load > 85: conditions.append(f"sustaining severe mechanical load ({p_load}%)"); fixes.append("Shift to a lower gear to relieve engine torque stress.")
+    if p_temp > 105: conditions.append(f"experiencing critical coolant thermal stress ({p_temp}°C)"); fixes.append("Inspect radiator fins for debris and verify water pump operation.")
+    if p_egt > 650: conditions.append(f"pushing dangerous exhaust gas temperatures ({p_egt}°C)"); fixes.append("Decrease engine load immediately to prevent turbocharger failure.")
+    if p_fuel < 1000 and p_load > 50: conditions.append(f"losing common-rail fuel pressure ({p_fuel} bar)"); fixes.append("Replace primary and secondary diesel fuel filters.")
+    if p_press < 140 or p_flow < 40: conditions.append(f"losing hydraulic flow and pressure"); fixes.append("Check main hydraulic pump seals, SCV valves, and verify fluid levels.")
+    if p_draft > 40: conditions.append(f"experiencing severe implement draft resistance ({p_draft} kN)"); fixes.append("Raise 3-point hitch slightly or adjust electronic draft control.")
+    if p_trans > 110: conditions.append(f"overheating transmission clutch packs ({p_trans}°C)"); fixes.append("Disengage implement and allow transmission fluid to cool.")
+    if p_slip > 20 and p_draft > 30: conditions.append(f"spinning out under heavy pulling load ({p_slip}% slip)"); fixes.append("Engage MFWD, diff-lock, or adjust rear wheel ballasting.")
+    if p_batt < 12.0: conditions.append(f"detecting dangerous voltage drops ({p_batt}V)"); fixes.append("Test alternator output and clean battery terminals.")
 
-    # Hydraulics & Draft
-    if p_press < 140 or p_flow < 40:
-        conditions.append(f"losing hydraulic flow and pressure")
-        fixes.append("Check main hydraulic pump seals, SCV valves, and verify fluid levels.")
-    if p_draft > 40:
-        conditions.append(f"experiencing severe implement draft resistance ({p_draft} kN)")
-        fixes.append("Raise 3-point hitch slightly or adjust electronic draft control sensitivity.")
-    
-    # Powertrain & Traction
-    if p_trans > 110:
-        conditions.append(f"overheating transmission clutch packs ({p_trans}°C)")
-        fixes.append("Disengage implement and allow transmission fluid to circulate through cooler.")
-    if p_slip > 20 and p_draft > 30:
-        conditions.append(f"spinning out under heavy pulling load ({p_slip}% slip)")
-        fixes.append("Engage mechanical front-wheel drive (MFWD), differential lock, or adjust rear wheel ballasting.")
-    
-    # Electrical
-    if p_batt < 12.0:
-        conditions.append(f"detecting dangerous voltage drops ({p_batt}V)")
-        fixes.append("Test alternator output and clean battery terminals.")
-
-    # Construct the Final Output
     if prediction == 0:
-        if not conditions:
-            return "✅ **STATUS:** The vehicle is operating flawlessly. No stress signatures detected across the 15 primary parameters.", "✔️ Continue standard field operations."
-        else:
-            return f"⚠️ **STATUS:** AI confirms no critical failures yet, but the system is currently " + ", and ".join(conditions) + ".", "**🔧 Preventative Actions:**\n" + "\n".join([f"- {f}" for f in fixes])
+        if not conditions: return "✅ **STATUS:** The vehicle is operating flawlessly. No stress signatures detected.", "✔️ Continue standard operations."
+        else: return f"⚠️ **STATUS:** AI confirms no critical failures yet, but the system is currently " + ", and ".join(conditions) + ".", "**🔧 Preventative Actions:**\n" + "\n".join([f"- {f}" for f in fixes])
     
     dtc_names = {1: "HYD-001", 2: "ENG-002", 3: "TRN-003", 4: "ELE-004", 5: "PTO-005"}
     return f"❌ **CRITICAL AI FAULT [{dtc_names.get(prediction)}]:** Failure signature identified because the machine is " + ", and ".join(conditions) + ".", "**🛠️ IMMEDIATE ACTIONS:**\n" + "\n".join([f"- {f}" for f in fixes])
 
 status_msg, fix_msg = generate_dynamic_diagnostics(rpm, load, temp, egt, fuel, intake, trans, pressure, flow, pto, draft, slip, battery)
 
-# --- UI Layout ---
-col_alert, col_xai = st.columns([1.3, 1])
-with col_alert:
-    st.markdown("### Vehicle Health Status")
-    if prediction == 0 and "flawlessly" in status_msg:
-        st.success(status_msg); st.info(fix_msg)
-    elif prediction == 0:
-        st.warning(status_msg); st.info(fix_msg)
-    else:
-        st.error(status_msg); st.error(fix_msg)
+# --- UI Layout: Text Diagnostics ---
+st.markdown("### Vehicle Health Diagnostics")
+if prediction == 0 and "flawlessly" in status_msg:
+    st.success(status_msg); st.info(fix_msg)
+elif prediction == 0:
+    st.warning(status_msg); st.info(fix_msg)
+else:
+    st.error(status_msg); st.error(fix_msg)
 
-with col_xai:
-    st.markdown("### AI Decision Drivers (Top 10)")
-    top_indices = np.argsort(importances)[-10:]
-    fig_xai = px.bar(x=importances[top_indices], y=input_df.columns[top_indices], orientation='h')
-    fig_xai.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=250, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(tickfont=dict(size=10)))
-    fig_xai.update_traces(marker_color='#eab308')
-    st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})
+st.divider()
+
+# --- VISUAL TELEMETRY SUITE ---
+st.markdown("### Visual Data Analytics Suite")
+
+with st.container(border=True):
+    # Top Row: Gauges
+    def sleek_gauge(val, title, min_v, max_v, color):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14}},
+            number={'font': {'color': color}},
+            gauge={'axis': {'range': [min_v, max_v]}, 'bar': {'color': color, 'thickness': 0.8}, 'bgcolor': "rgba(0,0,0,0.05)"}
+        ))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=15, r=15, t=30, b=10))
+        return fig
+
+    g1, g2, g3, g4 = st.columns(4)
+    with g1: st.plotly_chart(sleek_gauge(rpm, "Engine (RPM)", 800, 2500, "#3b82f6"), use_container_width=True, config={'displayModeBar': False})
+    with g2: st.plotly_chart(sleek_gauge(temp, "Coolant (°C)", 70, 125, "#ef4444"), use_container_width=True, config={'displayModeBar': False})
+    with g3: st.plotly_chart(sleek_gauge(pressure, "Hydraulic (bar)", 100, 250, "#10b981"), use_container_width=True, config={'displayModeBar': False})
+    with g4: st.plotly_chart(sleek_gauge(slip, "Wheel Slip (%)", 0, 50, "#f59e0b"), use_container_width=True, config={'displayModeBar': False})
+
+    # Bottom Row: Radar Chart & XAI Bar Chart
+    col_radar, col_xai = st.columns(2)
+    
+    with col_radar:
+        st.markdown("#### System Stress Distribution")
+        # Normalize values to a 0-100 scale for the radar chart
+        radar_df = pd.DataFrame(dict(
+            r=[
+                load, 
+                min((temp/125)*100, 100), 
+                min((pressure/250)*100, 100), 
+                min((draft/60)*100, 100), 
+                min((slip/50)*100, 100)
+            ],
+            theta=['Engine Load', 'Thermal Stress', 'Hydraulic Load', 'Draft Pull', 'Traction Loss']
+        ))
+        fig_radar = px.line_polar(radar_df, r='r', theta='theta', line_close=True)
+        fig_radar.update_traces(fill='toself', line_color='#eab308')
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=300, margin=dict(l=30, r=30, t=20, b=20)
+        )
+        st.plotly_chart(fig_radar, use_container_width=True, config={'displayModeBar': False})
+
+    with col_xai:
+        st.markdown("#### Explainable AI (Top Decision Drivers)")
+        top_indices = np.argsort(importances)[-10:]
+        fig_xai = px.bar(x=importances[top_indices], y=input_df.columns[top_indices], orientation='h')
+        fig_xai.update_layout(
+            margin=dict(l=0, r=0, t=20, b=0), height=300, 
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+            xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(tickfont=dict(size=11))
+        )
+        fig_xai.update_traces(marker_color='#3b82f6')
+        st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})
+
+if streaming:
+    st.rerun()
