@@ -21,11 +21,11 @@ st.markdown("""
 st.markdown("""
     <div class="premium-header">
         <h1>🚜 Industrial Digital Twin & Telemetry OS</h1>
-        <p>TIME-SERIES BUFFER • UNSUPERVISED ANOMALY DETECTION • DYNAMIC PRESCRIPTIVE MAINTENANCE</p>
+        <p>TIME-SERIES BUFFER • ANOMALY DETECTION • DYNAMIC NLP • VISUAL TELEMETRY SUITE</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Load Both AI Models
+# --- Load Both AI Models ---
 @st.cache_resource
 def load_models(): 
     return joblib.load('tractor_health_model.pkl'), joblib.load('anomaly_model.pkl')
@@ -36,7 +36,7 @@ except FileNotFoundError:
     st.error("⚠️ AI Cores Offline: Please run predictive_model.py first.")
     st.stop()
 
-# Initialize Time-Series History Buffer (stores last 50 readings)
+# Initialize Time-Series History Buffer
 if "history" not in st.session_state:
     st.session_state.history = deque(maxlen=50)
 
@@ -78,15 +78,14 @@ input_dict = {
     'Radar_Speed_kmh': radar, 'Steering_Angle_deg': steer, 'Battery_Voltage_V': battery
 }
 
-# Add 85 Micro-Sensors with Noise
+# Add Micro-Sensors with Noise
 np.random.seed(int(time.time())) 
 for i in range(1, 22): input_dict[f'Engine_Micro_{i}'] = rpm * np.random.uniform(0.01, 0.05) + np.random.normal(0, 2)
 for i in range(1, 22): input_dict[f'Hyd_Micro_{i}'] = pressure * np.random.uniform(0.8, 1.2) + np.random.normal(0, 1)
 for i in range(1, 22): input_dict[f'Trans_Micro_{i}'] = trans * np.random.uniform(0.9, 1.1) + np.random.normal(0, 0.5)
 for i in range(1, 23): input_dict[f'Elec_Micro_{i}'] = battery * np.random.uniform(0.95, 1.05) + np.random.normal(0, 0.05)
 
-# --- Time-Series State Management ---
-# Add a timestamp to the input dictionary and append it to the buffer
+# Time-Series State Management
 display_dict = input_dict.copy()
 display_dict['Time'] = time.strftime('%H:%M:%S')
 st.session_state.history.append(display_dict)
@@ -97,26 +96,23 @@ input_df = pd.DataFrame([input_dict])
 prediction = rf_model.predict(input_df)[0]
 confidence = max(rf_model.predict_proba(input_df)[0]) * 100
 importances = rf_model.feature_importances_
-
-# Unsupervised Anomaly Detection (-1 means anomaly, 1 means normal)
 anomaly = anomaly_model.predict(input_df)[0]
 
-# --- Dynamic Industry Health Score ---
+# --- Dynamic Health Score ---
 health_score = 100 - confidence if prediction != 0 else 95 + np.random.uniform(0, 5)
-if anomaly == -1:
-    health_score -= 20 # Massive penalty for unknown physics
+if anomaly == -1: health_score -= 20
 
 # --- DYNAMIC NLP HEURISTIC ENGINE ---
 def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_egt, p_fuel, p_intake, p_trans, p_press, p_flow, p_pto, p_draft, p_slip, p_batt):
     conditions, fixes = [], []
     if p_load > 85: conditions.append(f"sustaining severe mechanical load ({p_load}%)"); fixes.append("Shift to a lower gear.")
     if p_temp > 105: conditions.append(f"experiencing critical coolant thermal stress ({p_temp}°C)"); fixes.append("Inspect radiator fins.")
-    if p_egt > 650: conditions.append(f"pushing dangerous exhaust gas temperatures ({p_egt}°C)"); fixes.append("Decrease engine load immediately to save turbocharger.")
+    if p_egt > 650: conditions.append(f"pushing dangerous exhaust gas temperatures ({p_egt}°C)"); fixes.append("Decrease engine load immediately.")
     if p_fuel < 1000 and p_load > 50: conditions.append(f"losing common-rail fuel pressure ({p_fuel} bar)"); fixes.append("Replace primary diesel filters.")
     if p_press < 140 or p_flow < 40: conditions.append(f"losing hydraulic flow and pressure"); fixes.append("Check main hydraulic pump seals.")
     if p_draft > 40: conditions.append(f"experiencing severe implement draft resistance ({p_draft} kN)"); fixes.append("Raise 3-point hitch slightly.")
     if p_trans > 110: conditions.append(f"overheating transmission clutch packs ({p_trans}°C)"); fixes.append("Disengage implement to allow cooling.")
-    if p_slip > 20 and p_draft > 30: conditions.append(f"spinning out under heavy pulling load ({p_slip}% slip)"); fixes.append("Engage MFWD or differential lock.")
+    if p_slip > 20 and p_draft > 30: conditions.append(f"spinning out under heavy pulling load ({p_slip}% slip)"); fixes.append("Engage differential lock.")
     if p_batt < 12.0: conditions.append(f"detecting dangerous voltage drops ({p_batt}V)"); fixes.append("Test alternator output.")
 
     if prediction == 0:
@@ -128,52 +124,71 @@ def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_egt, p_fuel, p_intake,
 
 status_msg, fix_msg = generate_dynamic_diagnostics(rpm, load, temp, egt, fuel, intake, trans, pressure, flow, pto, draft, slip, battery)
 
-# --- UI Layout: Health Metrics & Diagnostics ---
+# --- UI Layout: Top Tier (Health & NLP) ---
 col_health, col_conf = st.columns(2)
-with col_health:
-    st.metric(label="Overall Machine Health Score", value=f"{health_score:.1f}%", delta="Stable" if health_score > 80 else "Degrading", delta_color="normal" if health_score > 80 else "inverse")
-with col_conf:
-    st.markdown("### AI Diagnostic Confidence")
-    st.progress(confidence/100, text=f"{confidence:.1f}% Confidence Level")
+with col_health: st.metric(label="Overall Machine Health Score", value=f"{health_score:.1f}%", delta="Stable" if health_score > 80 else "Degrading", delta_color="normal" if health_score > 80 else "inverse")
+with col_conf: st.progress(confidence/100, text=f"AI Diagnostic Confidence: {confidence:.1f}%")
 
 st.divider()
+
 col_alert, col_xai = st.columns([1.3, 1])
 with col_alert:
     st.markdown("### Prescriptive Diagnostics")
-    
-    # Trigger Unsupervised Anomaly Alert
-    if anomaly == -1:
-        st.error("🚨 **UNKNOWN ANOMALY DETECTED:** Sensor patterns are falling outside the training distribution! Possible zero-day mechanical failure occurring.")
-
-    if prediction == 0 and "flawlessly" in status_msg:
-        st.success(status_msg); st.info(fix_msg)
-    elif prediction == 0:
-        st.warning(status_msg); st.info(fix_msg)
-    else:
-        st.error(status_msg); st.error(fix_msg)
+    if anomaly == -1: st.error("🚨 **UNKNOWN ANOMALY DETECTED:** Sensor patterns are falling outside the training distribution!")
+    if prediction == 0 and "flawlessly" in status_msg: st.success(status_msg); st.info(fix_msg)
+    elif prediction == 0: st.warning(status_msg); st.info(fix_msg)
+    else: st.error(status_msg); st.error(fix_msg)
 
 with col_xai:
-    st.markdown("### Explainable AI (Stable Feature Importance)")
-    
-    # Stabilize the XAI output
-    importance_df = pd.DataFrame({"feature": input_df.columns, "importance": importances})
-    importance_df = importance_df.sort_values("importance", ascending=False).head(10)
-    
+    st.markdown("### Explainable AI (Top Drivers)")
+    importance_df = pd.DataFrame({"feature": input_df.columns, "importance": importances}).sort_values("importance", ascending=False).head(10)
     fig_xai = px.bar(importance_df, x="importance", y="feature", orientation='h')
     fig_xai.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=250, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(tickfont=dict(size=10)))
     fig_xai.update_traces(marker_color='#eab308')
     st.plotly_chart(fig_xai, use_container_width=True, config={'displayModeBar': False})
 
-# --- UI Layout: Time-Series Visuals ---
+# --- UI Layout: Middle Tier (The Dials are Back!) ---
 with st.container(border=True):
-    st.markdown("### 📈 Live Telemetry History Buffer")
-    history_df = pd.DataFrame(st.session_state.history)
-    
-    # Plotly Line Chart for the rolling buffer
-    fig_history = px.line(history_df, x='Time', y=['Engine_RPM', 'Coolant_Temp_C', 'Hydraulic_Pressure_bar', 'Exhaust_Gas_Temp_C'], markers=True, template="plotly_dark")
-    fig_history.update_layout(height=350, margin=dict(l=10, r=10, t=30, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Time", yaxis_title="Sensor Value")
-    st.plotly_chart(fig_history, use_container_width=True, config={'displayModeBar': False})
+    st.markdown("### Live ISOBUS Telemetry")
+    def sleek_gauge(val, title, min_v, max_v, color):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number", value=val, title={'text': title, 'font': {'size': 14}},
+            number={'font': {'color': color}},
+            gauge={'axis': {'range': [min_v, max_v]}, 'bar': {'color': color, 'thickness': 0.8}, 'bgcolor': "rgba(0,0,0,0.05)"}
+        ))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=15, r=15, t=30, b=10))
+        return fig
 
+    g1, g2, g3, g4 = st.columns(4)
+    with g1: st.plotly_chart(sleek_gauge(rpm, "Engine (RPM)", 800, 2500, "#3b82f6"), use_container_width=True, config={'displayModeBar': False})
+    with g2: st.plotly_chart(sleek_gauge(temp, "Coolant (°C)", 70, 125, "#ef4444"), use_container_width=True, config={'displayModeBar': False})
+    with g3: st.plotly_chart(sleek_gauge(pressure, "Hydraulic (bar)", 100, 250, "#10b981"), use_container_width=True, config={'displayModeBar': False})
+    with g4: st.plotly_chart(sleek_gauge(slip, "Wheel Slip (%)", 0, 50, "#f59e0b"), use_container_width=True, config={'displayModeBar': False})
+
+# --- UI Layout: Bottom Tier (Radar & History) ---
+col_radar, col_hist = st.columns([1, 2])
+
+with col_radar:
+    with st.container(border=True):
+        st.markdown("### Stress Distribution")
+        radar_df = pd.DataFrame(dict(
+            r=[load, min((temp/125)*100, 100), min((pressure/250)*100, 100), min((draft/60)*100, 100), min((slip/50)*100, 100)],
+            theta=['Engine Load', 'Thermal Stress', 'Hydraulic Load', 'Draft Pull', 'Traction Loss']
+        ))
+        fig_radar = px.line_polar(radar_df, r='r', theta='theta', line_close=True)
+        fig_radar.update_traces(fill='toself', line_color='#eab308')
+        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=300, margin=dict(l=30, r=30, t=20, b=20))
+        st.plotly_chart(fig_radar, use_container_width=True, config={'displayModeBar': False})
+
+with col_hist:
+    with st.container(border=True):
+        st.markdown("### 📈 Time-Series History Buffer")
+        history_df = pd.DataFrame(st.session_state.history)
+        fig_history = px.line(history_df, x='Time', y=['Engine_RPM', 'Coolant_Temp_C', 'Hydraulic_Pressure_bar', 'Exhaust_Gas_Temp_C'], markers=True)
+        fig_history.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_history, use_container_width=True, config={'displayModeBar': False})
+
+# --- Streaming Loop ---
 if streaming:
     st.session_state.sensors['rpm'] = int(np.clip(st.session_state.sensors['rpm'] + np.random.normal(0, 15), 800, 2500))
     st.session_state.sensors['pressure'] = np.clip(st.session_state.sensors['pressure'] + np.random.normal(0, 1.5), 100, 250)
