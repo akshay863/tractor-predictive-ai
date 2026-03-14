@@ -79,7 +79,7 @@ input_dict = {
 }
 
 # Add Micro-Sensors with Noise
-np.random.seed(int(time.time())) 
+np.random.seed(42) # Locked seed prevents drift!
 for i in range(1, 22): input_dict[f'Engine_Micro_{i}'] = rpm * np.random.uniform(0.01, 0.05) + np.random.normal(0, 2)
 for i in range(1, 22): input_dict[f'Hyd_Micro_{i}'] = pressure * np.random.uniform(0.8, 1.2) + np.random.normal(0, 1)
 for i in range(1, 22): input_dict[f'Trans_Micro_{i}'] = trans * np.random.uniform(0.9, 1.1) + np.random.normal(0, 0.5)
@@ -98,9 +98,24 @@ confidence = max(rf_model.predict_proba(input_df)[0]) * 100
 importances = rf_model.feature_importances_
 anomaly = anomaly_model.predict(input_df)[0]
 
-# --- Dynamic Health Score ---
-health_score = 100 - confidence if prediction != 0 else 95 + np.random.uniform(0, 5)
-if anomaly == -1: health_score -= 20
+# --- NEW DYNAMIC HEALTH SCORE MATH ---
+health_score = 100.0
+
+# 1. Physical Stress Penalty (Subtracts up to 15 points for heat and load)
+stress_penalty = ((load / 100.0) * 8) + (((temp - 70) / 55.0) * 7)
+health_score -= stress_penalty
+
+# 2. Known AI Fault Penalty (Subtracts up to 40 points if actively breaking down)
+if prediction != 0:
+    health_score -= (confidence * 0.4) 
+
+# 3. Unknown Anomaly Penalty (Subtracts 25 points if physics are impossible)
+if anomaly == -1:
+    health_score -= 25
+
+# Lock it between 0 and 100
+health_score = max(0.0, min(100.0, health_score))
+
 
 # --- DYNAMIC NLP HEURISTIC ENGINE ---
 def generate_dynamic_diagnostics(p_rpm, p_load, p_temp, p_egt, p_fuel, p_intake, p_trans, p_press, p_flow, p_pto, p_draft, p_slip, p_batt):
